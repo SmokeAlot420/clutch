@@ -1,0 +1,11 @@
+{
+  "name": "clutch",
+  "version": "1.0.0",
+  "description": "CLUTCH — Claude Layered Unified Team Coordination Hub. Parallel PIV execution with Agent Teams. Spawns multiple executor teammates that work simultaneously, coordinate via messaging, and validate independently.",
+  "author": {
+    "name": "smoke"
+  },
+  "homepage": "https://github.com/SmokeAlot420/clutch",
+  "license": "MIT",
+  "keywords": ["clutch", "piv-teams", "agent-teams", "parallel", "workflow", "validation", "prp", "prd", "multi-agent", "claude-code"]
+}
