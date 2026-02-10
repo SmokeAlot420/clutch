@@ -44,6 +44,19 @@ Verification:
 - [ ] Tests exist?
 ```
 
+### 2b. Verify Contracts (if team mode with dependencies)
+
+If the PRP has a Contract Chain section (workstreams with `depends_on` relationships):
+
+1. For each upstream-downstream pair, verify:
+   - Upstream's implemented interface matches the published contract
+   - Downstream's consumption matches the published contract
+   - No URL mismatches (trailing slashes, path params, query format)
+   - No response shape mismatches (flat vs nested, missing fields, wrong types)
+   - No error format mismatches
+2. Check integration points: does downstream actually call upstream's real interface?
+3. If mismatches found: report as GAPS_FOUND with specific diff (what upstream provides vs what downstream expects)
+
 ### 3. Run Independent Verification Commands
 
 **Do not trust executor's test results** - run them yourself:

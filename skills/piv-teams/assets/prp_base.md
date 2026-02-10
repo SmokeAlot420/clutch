@@ -174,6 +174,39 @@ ROUTES:
   1. [Task description]
   2. [Task description]
 
+## Contract Chain (if workstreams have dependencies)
+
+<!-- Only needed when workstreams have depends_on relationships. -->
+<!-- Maps what interfaces flow between workstreams so the orchestrator can enforce contract-first spawning. -->
+
+Map the dependency chain between workstreams:
+
+```
+[upstream workstream] → publishes [contract type] → [downstream workstream]
+```
+
+Example:
+```
+database → function signatures → api
+api → REST contract (URLs, JSON shapes, status codes) → frontend
+```
+
+For each contract boundary, define:
+- **Exact interface** (URLs with trailing slashes, JSON response shapes, field names and types)
+- **Error responses** (status codes, error body format)
+- **Edge cases** (empty states, pagination format, streaming format)
+
+## Cross-Cutting Concerns
+
+<!-- Behaviors that span multiple workstreams. Assign each to ONE workstream owner. -->
+<!-- If no cross-cutting concerns exist, delete this section. -->
+
+| Concern | Owner (workstream) | Coordinates with | Detail |
+|---------|-------------------|-----------------|--------|
+| [URL conventions] | [api] | [frontend] | [Trailing slashes on collection endpoints, query param format] |
+| [Error shapes] | [api] | [frontend] | [{ error: string, code: number }] |
+| [Response envelope] | [api] | [frontend] | [{ data: T, meta?: {...} }] |
+
 ## Validation Loop
 
 ### Level 1: Syntax & Style

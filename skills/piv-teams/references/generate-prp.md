@@ -95,6 +95,34 @@ After research completion, create a comprehensive PRP writing plan:
 - Aim for 2-4 workstreams (sweet spot for parallelism vs. coordination overhead)
 - If the phase genuinely cannot be parallelized, define only 1 workstream (the orchestrator will fall back to solo execution)
 
+### Contract Chain Analysis
+
+When generating workstreams, also analyze dependencies between them:
+
+1. For each workstream, check: does it PRODUCE interfaces that other workstreams CONSUME?
+2. If yes, add `depends_on` to the consumer workstream
+3. Document the contract boundary (what shape of data flows between them)
+4. Identify cross-cutting concerns that span workstreams (URL conventions, error shapes, etc.)
+
+Example output in PRP:
+```markdown
+### Workstream 1: api
+- **Files owned**: src/api/, src/middleware/
+- **Depends on**: none (UPSTREAM)
+- **Produces**: REST API contract for frontend workstream
+- **Tasks**: endpoints, auth, validation
+
+### Workstream 2: frontend
+- **Files owned**: src/components/, src/pages/
+- **Depends on**: api (DOWNSTREAM — needs API contract first)
+- **Consumes**: REST API contract from api workstream
+- **Tasks**: components, routing, state management
+```
+
+If ALL workstreams are independent (no `depends_on`): note this explicitly. The orchestrator uses this to decide: parallel spawn (independent) vs staggered spawn (dependent).
+
+Also populate the **Contract Chain** and **Cross-Cutting Concerns** sections in the PRP template when dependencies exist.
+
 **What goes in each workstream:**
 - A descriptive name (becomes the teammate's name: `executor-{name}`)
 - The specific files it creates and modifies (exclusive ownership)

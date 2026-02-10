@@ -32,12 +32,18 @@ CLUTCH:       Analyze → Execute (2-4 agents in parallel) → Validate → Debu
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                  CLUTCH ORCHESTRATOR                      │
+│                  CLUTCH ORCHESTRATOR v2                    │
 ├──────────────────────────────────────────────────────────┤
 │  1. Generate PRP with ## Workstreams section              │
 │  2. Evaluate: 1 workstream → solo, 2-4 → team mode      │
-│  3. TeamCreate + spawn executor per workstream            │
-│  4. Executors work in parallel, message each other        │
+│  3. Check depends_on:                                     │
+│     No deps  → spawn all executors in parallel            │
+│     Has deps → contract-first staggered spawn:            │
+│       a. Spawn upstream executors first                   │
+│       b. Receive & verify interface contracts             │
+│       c. Forward contracts to downstream executors        │
+│       d. All executors build in parallel                  │
+│  4. Pre-integration contract diff (if deps existed)       │
 │  5. Spawn validator → PASS / GAPS_FOUND / HUMAN_NEEDED   │
 │  6. Debug: assign gaps back to responsible executors      │
 │  7. Shutdown team, commit, next phase                     │
@@ -128,6 +134,18 @@ clutch/
             ├── prp_base.md
             └── workflow-template.md
 ```
+
+## v2: Contract-First Protocol
+
+CLUTCH v2 adds **contract-first spawning** for workstreams with dependencies (inspired by [Cole Medin's agent team patterns](https://github.com/coleam00/context-engineering-intro)):
+
+- **Staggered spawn**: Dependent workstreams spawn in order (upstream first, downstream after contract verified)
+- **Lead as relay**: Upstream executors publish interface contracts before coding; lead verifies and forwards to downstream
+- **Cross-cutting concerns**: Shared behaviors (URL conventions, error shapes) explicitly assigned to one owner
+- **Pre-integration diff**: Contract comparison before validation catches mismatches early
+- **Anti-pattern prevention**: No more "3 agents built 3 things that don't connect"
+
+**Independent workstreams still spawn fully parallel** — zero overhead when there are no dependencies. The contract-first protocol only activates when the PRP has `depends_on` relationships.
 
 ## Related
 

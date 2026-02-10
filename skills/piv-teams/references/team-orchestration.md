@@ -72,6 +72,67 @@ Each workstream exclusively owns its files. This is the primary coordination mec
 - If a teammate needs something from another teammate's file, they message and wait
 - The PRP's workstream section defines file ownership
 
+## Contract-First Spawning (for dependent workstreams)
+
+When workstreams have `depends_on` relationships, the orchestrator MUST enforce contract-first spawning. This prevents the classic failure mode where parallel agents build incompatible interfaces.
+
+### The Contract Chain
+
+The PRP's Workstreams section defines dependencies via the `depends_on` field. The orchestrator reads this to determine spawn order.
+
+### Anti-Patterns
+
+**Anti-pattern: Fully parallel spawn with dependencies**
+All executors spawn simultaneously → each builds to assumptions → integration fails at the end. This is the #1 failure mode for multi-agent teams.
+
+**Anti-pattern: "Tell them to talk to each other"**
+Lead says "share your contract with the other executor" → they don't, or share too late, or share something vague. Agents are bad at self-organizing communication.
+
+**Anti-pattern: Late contract sharing**
+Upstream executor finishes implementation, THEN shares what they built → downstream already made incompatible assumptions. Contract must come BEFORE implementation.
+
+### Good Pattern: Lead as Active Relay
+
+```
+Upstream publishes contract → Lead verifies → Lead forwards to downstream → Both build in parallel
+```
+
+The lead is the quality gate. No contract passes to downstream without lead verification.
+
+### Spawn Order Protocol
+
+1. Read PRP Workstreams — identify `depends_on` relationships
+2. Workstreams with `depends_on: none` = upstream (spawn first)
+3. Each upstream executor's FIRST deliverable: interface contract via SendMessage to lead
+4. Lead verifies: exact shapes, URLs, error codes, no ambiguity
+5. Lead forwards verified contract to downstream executor's spawn prompt
+6. Downstream spawns with contract embedded — NO guessing
+
+### Cross-Cutting Concerns
+
+Before spawning, scan PRP for behaviors spanning multiple workstreams:
+
+| Concern | Example | Risk if unassigned |
+|---------|---------|-------------------|
+| URL conventions | trailing slashes, path params | 404s at integration |
+| Response envelopes | `{data: {...}}` vs flat | Frontend parse failures |
+| Error shapes | `{error: "msg"}` vs `{code: N, message: "msg"}` | Inconsistent UX |
+| Shared constants | config values, magic numbers | Divergent defaults |
+| Storage semantics | per-event vs accumulated, key naming | Data corruption |
+
+Assign each to ONE executor. Include in their spawn prompt.
+
+### Contract Verification Checklist
+
+When lead receives a contract from upstream:
+- [ ] URLs are exact (including trailing slashes, path params)
+- [ ] Response JSON shapes are explicit (not "returns user data")
+- [ ] All status codes specified (200, 400, 404, 500)
+- [ ] Error body format specified
+- [ ] Any streaming/SSE event types documented
+- [ ] Any envelope wrappers noted
+- [ ] Cross-cutting concerns addressed
+
 ### When to Message Teammates
 
 Teammates should message each other when:

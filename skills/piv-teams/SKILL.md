@@ -238,12 +238,81 @@ Project: {PROJECT_PATH}
 4. **Create tasks** in the shared task list (one per workstream), assign to teammates.
 5. **Set up blockedBy** if any workstreams have dependencies.
 
+### Step 2c: Contract-First Protocol (TEAM MODE with dependencies)
+
+If workstreams have `depends_on` relationships, use **staggered spawn** instead of fully parallel spawn:
+
+1. **Map the contract chain** from the PRP's Workstreams section:
+   - Workstreams with `depends_on: none` = **upstream** (spawn first)
+   - Workstreams with `depends_on: [other]` = **downstream** (spawn after contracts received)
+
+2. **Identify cross-cutting concerns** before spawning ANY executors:
+   - URL/path conventions (trailing slashes, query params)
+   - Response envelope format (flat vs nested)
+   - Error shape (status codes, error body format)
+   - Shared constants, config values, data storage semantics
+   - Assign each concern to ONE upstream executor. Include in their spawn prompt:
+     `"You own the cross-cutting concern: [X]. Define it in your contract."`
+
+3. **Spawn upstream executors first.** Add to their prompt:
+   ```
+   ## Mandatory: Publish Interface Contract FIRST
+
+   Before writing ANY implementation code, you MUST:
+   1. Define your interface contract (exact function signatures, API URLs, response JSON shapes, error formats)
+   2. Send it to the lead via SendMessage
+   3. WAIT for lead confirmation before proceeding to implementation
+
+   Your contract must include:
+   - Exact function signatures or API endpoint URLs (with trailing slashes if applicable)
+   - Exact request/response JSON shapes (field names, types, nesting)
+   - All status codes for success and error cases
+   - Error body format
+   - Any streaming/event types or envelope wrappers
+   ```
+
+4. **Lead receives and verifies each contract:**
+   - Are interfaces explicit? (exact URLs, exact JSON shapes — not "returns user data")
+   - Are all status codes specified (200, 400, 404, 500)?
+   - Is the error body format specified?
+   - Any ambiguities that would cause downstream divergence?
+   - If unclear → message executor for clarification before forwarding
+
+5. **Forward verified contracts to downstream executors** in their spawn prompt:
+   ```
+   ## Contract You Must Conform To
+
+   The following interface contract was published by executor-{upstream} and verified by the lead.
+   Build to this contract EXACTLY. Do NOT deviate without asking the lead first.
+
+   {paste contract verbatim}
+   ```
+
+6. **If ALL workstreams are independent (no `depends_on`):** skip this step entirely — spawn all in parallel as in Step 2b.
+
 ### Step 3: Monitor Team Execution
 
 - Teammates send messages automatically when done or when they need help
 - Answer teammate questions promptly
 - If a teammate reports BLOCKED, provide guidance or reassign work
 - Wait for all executor teammates to mark their tasks complete
+
+### Step 3b: Pre-Integration Contract Diff (TEAM MODE with dependencies)
+
+Before spawning the validator, run a contract diff if workstreams had `depends_on` relationships:
+
+1. For each upstream-downstream pair, ask both executors via SendMessage:
+   - Upstream: "What exact interface did you implement? Paste your final contract."
+   - Downstream: "What exact interface are you consuming? Paste the contract you built against."
+2. Compare the two responses:
+   - URL mismatches (trailing slashes, path params, query string format)
+   - Response shape mismatches (flat vs nested, missing fields, extra fields)
+   - Status code disagreements
+   - Error format divergence
+3. If mismatches found: send correction to the wrong side, let them fix, then proceed to validator.
+4. If no mismatches: proceed directly to validator.
+
+**Skip this step entirely if all workstreams were independent (no `depends_on`).**
 
 ### Step 4: Spawn Validator
 
@@ -397,14 +466,22 @@ All phases successfully implemented and validated.
 │      PRP MUST include ## Workstreams section                     │
 │   c. Evaluate workstreams:                                       │
 │      0-1 → Solo fallback (spawn 1 piv-executor)                 │
-│      2-4 → TeamCreate + spawn executor teammates in parallel     │
+│      2-4 → TeamCreate + team mode                                │
 │      5+  → Merge to 4, then team mode                           │
-│   d. Monitor teammates / wait for completion                     │
-│   e. Spawn VALIDATOR → PASS / GAPS_FOUND / HUMAN_NEEDED         │
-│   f. If GAPS_FOUND → assign gaps to executors (max 3x)          │
-│   g. Shutdown team + TeamDelete                                  │
-│   h. Commit on PASS                                              │
-│   i. Update WORKFLOW.md                                          │
-│   j. Next phase                                                  │
+│   d. Check depends_on:                                           │
+│      No deps  → spawn all executors in parallel                  │
+│      Has deps → contract-first staggered spawn:                  │
+│        i.  Identify cross-cutting concerns, assign owners        │
+│        ii. Spawn upstream executors (publish contract first)     │
+│        iii.Verify contracts, forward to downstream executors     │
+│        iv. All executors build in parallel                       │
+│   e. Monitor teammates / wait for completion                     │
+│   f. Pre-integration contract diff (if deps existed)             │
+│   g. Spawn VALIDATOR → PASS / GAPS_FOUND / HUMAN_NEEDED         │
+│   h. If GAPS_FOUND → assign gaps to executors (max 3x)          │
+│   i. Shutdown team + TeamDelete                                  │
+│   j. Commit on PASS                                              │
+│   k. Update WORKFLOW.md                                          │
+│   l. Next phase                                                  │
 └──────────────────────────────────────────────────────────────────┘
 ```

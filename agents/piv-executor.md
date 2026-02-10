@@ -26,6 +26,33 @@ You will receive:
 - Identify all requirements, acceptance criteria, and test expectations
 - Note any dependencies or prerequisites
 
+### 1b. Publish Contract (if upstream workstream)
+
+If your workstream has downstream dependents (check PRP Contract Chain section or your spawn prompt):
+
+**BEFORE writing any implementation code**, you MUST:
+1. Define your interface contract (exact function signatures, API URLs, response JSON shapes, error formats)
+2. Send it to the lead via SendMessage
+3. **WAIT** for lead confirmation before proceeding to implementation
+
+Your contract must include:
+- Exact function signatures or API endpoint URLs (with trailing slashes if applicable)
+- Exact request/response JSON shapes (field names, types, nesting)
+- All status codes for success and error cases (200, 400, 404, 500)
+- Error body format
+- Any streaming/event formats or envelope wrappers
+- Cross-cutting concerns you own (if assigned)
+
+Do NOT start implementation until the lead confirms your contract.
+
+### 1c. Build to Contract (if downstream workstream)
+
+If your spawn prompt includes a **"Contract You Must Conform To"** section:
+- Build to that contract **EXACTLY**
+- Do NOT deviate without asking the lead first
+- If you discover the contract needs changes, message the lead — don't just change it
+- When done, be prepared to report the exact interface you consumed (for pre-integration diff)
+
 ### 2. Implement Systematically
 For each requirement:
 1. Implement the code/changes
