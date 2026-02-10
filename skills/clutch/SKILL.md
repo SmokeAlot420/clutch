@@ -61,6 +61,19 @@ When PRD_PATH is specified, scan the PRD for phase sections:
 
 ---
 
+## Resolve CLUTCH Plugin Directory
+
+Before proceeding, determine the absolute path to the CLUTCH plugin:
+```bash
+# Find the CLUTCH plugin root (parent of .claude-plugin/)
+find /home -maxdepth 4 -name "plugin.json" -path "*/clutch/.claude-plugin/*" 2>/dev/null | head -1 | sed 's|/.claude-plugin/plugin.json||'
+```
+Store the result as `CLUTCH_DIR`. All reference docs and templates are under this directory.
+
+Verify: `CLUTCH_DIR/skills/clutch/assets/prp_base.md` should exist.
+
+---
+
 ## Required Reading by Role
 
 **CRITICAL: Each role MUST read their instruction files before acting.**
@@ -92,7 +105,9 @@ When MODE = "discovery":
    - If user doesn't know tech stack → research and PROPOSE one
    - If user can't define phases → propose 3-4 phases based on scope
    - Always propose-and-confirm: "Here's what I'd suggest — does this sound right?"
-5. Run project setup (create PRDs/, PRPs/templates/, PRPs/planning/)
+5. Run project setup:
+   - Create directories: PRDs/, PRPs/templates/, PRPs/planning/
+   - Copy PRP template: `cp {CLUTCH_DIR}/skills/clutch/assets/prp_base.md {PROJECT_PATH}/PRPs/templates/prp_base.md`
 6. Generate PRD: Read references/create-prd.md, write to PROJECT_PATH/PRDs/PRD-{project-name}.md
 7. Set PRD_PATH to the generated PRD, auto-detect phases → continue to Phase Workflow
 
@@ -147,25 +162,27 @@ PRD Path: {PRD_PATH}
 {paste phase title, deliverables, and validation criteria}
 
 ## Step 1: Codebase Analysis
-Read and follow the codebase analysis process doc.
-Run deep codebase analysis for: {phase feature description}
+Read the codebase analysis process doc at: {CLUTCH_DIR}/skills/clutch/references/codebase-analysis.md
+Follow it fully. Run deep codebase analysis for: {phase feature description}
 Save analysis to: {PROJECT_PATH}/PRPs/planning/{PRD_NAME}-phase-{N}-analysis.md
 
 ## Step 2: Generate PRP (analysis context still loaded)
-Read and follow the PRP generation process doc.
+Read the PRP generation process doc at: {CLUTCH_DIR}/skills/clutch/references/generate-prp.md
+Read the PRP template at: {CLUTCH_DIR}/skills/clutch/assets/prp_base.md
+Follow the process doc fully. Use the template structure.
 You already have the codebase analysis in your context — use it directly.
 DO NOT spawn a sub-agent for this. You do it yourself.
 Output PRP to: {PROJECT_PATH}/PRPs/PRP-{PRD_NAME}-phase-{N}.md
 
 IMPORTANT: The PRP MUST include a ## Workstreams section that defines how
 work can be split across parallel executor teammates. Each workstream should
-own exclusive files. Aim for 2-4 workstreams. See the prp_base.md template.
+own exclusive files. Aim for 2-4 workstreams. See the template for format.
 
 ## Critical Rules
 - Do BOTH steps yourself in sequence
 - Your analysis context feeds directly into PRP quality
 - Follow the full generate-prp process (template, quality gates, info density)
-- The PRP template is at: PRPs/templates/prp_base.md
+- The PRP template is at: {CLUTCH_DIR}/skills/clutch/assets/prp_base.md
 - DO NOT spawn sub-agents for either step
 - The Workstreams section is REQUIRED — this PRP will be used for team execution
 ```
