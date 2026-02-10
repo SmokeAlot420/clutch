@@ -1,6 +1,6 @@
 ---
-name: piv-teams
-description: "CLUTCH — Claude Layered Unified Team Coordination Hub. Parallel PIV execution with Agent Teams. Same analyze -> PRP -> execute -> validate -> debug pipeline, but spawns multiple executor teammates that work simultaneously. Use for phases with parallelizable work (frontend+backend, multiple components, etc.). Triggers on: PIV teams, parallel PIV, team execution, multi-agent PIV, clutch."
+name: clutch
+description: "CLUTCH — Claude Layered Unified Team Coordination Hub. Parallel execution with Agent Teams. Analyze -> PRP -> execute -> validate -> debug pipeline with multiple executor teammates working simultaneously. Contract-first protocol for dependent workstreams. Triggers on: clutch, parallel execution, team execution, multi-agent, piv-teams."
 disable-model-invocation: true
 allowed-tools: Task, TaskCreate, TaskUpdate, TaskList, TeamCreate, TeamDelete, SendMessage, Read, Write, Bash, Glob, Grep
 argument-hint: "[PRD_PATH|PROJECT_PATH] [START_PHASE] [END_PHASE]"
