@@ -135,9 +135,16 @@ CLUTCH v2 adds **contract-first spawning** for workstreams with dependencies (in
 
 **Independent workstreams still spawn fully parallel** — zero overhead when there are no dependencies. The contract-first protocol only activates when the PRP has `depends_on` relationships.
 
+## Credits
+
+The **PIV Loop** (Plan-Implement-Validate) was created by [Cole Medin](https://github.com/coleam00) and [Rasmus Widing](https://github.com/rasmuswiding) as part of the [Dynamous Community](https://community.dynamous.ai) [Agentic Coding Course](https://github.com/dynamous-community/agentic-coding-course). Rasmus also created the **PRP framework** that both Ralph PIV and CLUTCH build on.
+
+CLUTCH extends their methodology with parallel Agent Teams — multiple executors working simultaneously on file-exclusive workstreams, coordinated via contract-first protocol.
+
 ## Related
 
 - **[Ralph PIV](https://github.com/SmokeAlot420/piv)** — Solo PIV workflow for Claude Code. Deep analysis, context-rich plans, independent validation. CLUTCH extends Ralph PIV with parallel teams.
+- **[Agentic Coding Course](https://github.com/dynamous-community/agentic-coding-course)** — The course where the PIV Loop and PRP framework originated. By Cole Medin & Rasmus Widing.
 
 ## License
 
