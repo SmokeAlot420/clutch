@@ -19,15 +19,15 @@
 
 ## Why I Built This
 
-I was using [PIV](https://github.com/SmokeAlot420/piv) (Plan-Implement-Validate) for everything — and it's great for solo execution. Deep analysis, context-rich plans, independent validation. But some phases have work that's clearly parallelizable: frontend + backend + database, or three independent API endpoints, or UI components that don't touch the same files.
+I was using [Ralph PIV](https://github.com/SmokeAlot420/piv) (Plan-Implement-Validate) for everything — and it's great for solo execution. Deep analysis, context-rich plans, independent validation. But some phases have work that's clearly parallelizable: frontend + backend + database, or three independent API endpoints, or UI components that don't touch the same files.
 
 Running those serially felt wrong. If the work is file-independent, why not run 2-4 executors at the same time?
 
-That's CLUTCH. Same PIV quality pipeline, but the execution phase runs in parallel using Claude Code's Agent Teams. The PRP defines workstreams (file-exclusive work units), and CLUTCH spawns one executor per workstream. They work simultaneously, then validation catches anything that slipped through.
+That's CLUTCH. Same Ralph PIV quality pipeline, but the execution phase runs in parallel using Claude Code's Agent Teams. The PRP defines workstreams (file-exclusive work units), and CLUTCH spawns one executor per workstream. They work simultaneously, then validation catches anything that slipped through.
 
 ## Who This Is For
 
-- Devs already using [`/piv`](https://github.com/SmokeAlot420/piv) who hit phases with parallelizable work
+- Devs already using [`/piv`](https://github.com/SmokeAlot420/piv) via Ralph PIV who hit phases with parallelizable work
 - Anyone building features that span frontend + backend + DB
 - Teams that want faster execution without sacrificing validation
 
@@ -85,7 +85,7 @@ claude --plugin-dir ./clutch
 
 | Scenario | Use |
 |----------|-----|
-| Single-focus phase (one component, one feature) | Solo [`/piv`](https://github.com/SmokeAlot420/piv) |
+| Single-focus phase (one component, one feature) | Solo [`/piv`](https://github.com/SmokeAlot420/piv) via Ralph PIV |
 | Phase with parallelizable work (frontend + backend + DB) | `/clutch` |
 | Quick single feature, no PRD | [`/mini-piv`](https://github.com/SmokeAlot420/piv) |
 | Unsure | Use `/clutch` — it auto-falls back to solo if only 1 workstream |
@@ -137,7 +137,7 @@ CLUTCH v2 adds **contract-first spawning** for workstreams with dependencies (in
 
 ## Related
 
-- **[PIV](https://github.com/SmokeAlot420/piv)** — Solo PIV workflow for Claude Code. Deep analysis, context-rich plans, independent validation. CLUTCH extends PIV with parallel teams.
+- **[Ralph PIV](https://github.com/SmokeAlot420/piv)** — Solo PIV workflow for Claude Code. Deep analysis, context-rich plans, independent validation. CLUTCH extends Ralph PIV with parallel teams.
 
 ## License
 
