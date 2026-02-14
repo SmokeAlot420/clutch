@@ -1,8 +1,8 @@
-# Team Orchestration for PIV Teams
+# Team Orchestration for CLUTCH
 
 ## Overview
 
-This document covers team-specific orchestration patterns for parallel PIV execution. The orchestrator creates a team of executor teammates that work simultaneously on different workstreams, coordinated through a shared task list and inter-agent messaging.
+This document covers team-specific orchestration patterns for parallel execution. The orchestrator creates a team of executor teammates that work simultaneously on different workstreams, coordinated through a shared task list and inter-agent messaging.
 
 ## Team Lifecycle
 

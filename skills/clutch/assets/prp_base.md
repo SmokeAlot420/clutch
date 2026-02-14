@@ -151,7 +151,7 @@ ROUTES:
 
 ## Workstreams (for parallel execution)
 
-<!-- Only required when using /piv-teams. Omit for solo /piv. -->
+<!-- Only required when using /clutch. Omit for solo /piv. -->
 <!-- Each workstream becomes one executor teammate. -->
 <!-- Workstreams should be file-independent (no two workstreams edit the same file). -->
 <!-- Aim for 2-4 workstreams. If only 1 is needed, the orchestrator falls back to solo mode. -->

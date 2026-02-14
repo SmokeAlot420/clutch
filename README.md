@@ -1,7 +1,7 @@
 <p align="center">
   <h1 align="center"><b>CLUTCH</b></h1>
   <p align="center"><i>Claude Layered Unified Team Coordination Hub</i></p>
-  <p align="center">Parallel PIV execution for Claude Code Agent Teams. Multiple executor agents working simultaneously, coordinating via messaging, validated independently.</p>
+  <p align="center">Parallel execution for Claude Code Agent Teams. Multiple executor agents working simultaneously, coordinating via contracts, validated independently.</p>
 </p>
 
 <p align="center">
@@ -17,63 +17,19 @@
 
 ---
 
-## What is CLUTCH?
+## Why I Built This
 
-CLUTCH brings **parallel execution** to the [PIV (Plan-Implement-Validate)](https://github.com/SmokeAlot420/ftw) workflow using Claude Code's **Agent Teams**.
+I was using [PIV](https://github.com/SmokeAlot420/piv) (Plan-Implement-Validate) for everything — and it's great for solo execution. Deep analysis, context-rich plans, independent validation. But some phases have work that's clearly parallelizable: frontend + backend + database, or three independent API endpoints, or UI components that don't touch the same files.
 
-Instead of one executor working through tasks serially, CLUTCH splits work into **workstreams** and spawns multiple executor teammates that work **simultaneously** — then validates everything independently.
+Running those serially felt wrong. If the work is file-independent, why not run 2-4 executors at the same time?
 
-```
-Solo PIV:     Analyze → Execute (1 agent) → Validate → Debug
-CLUTCH:       Analyze → Execute (2-4 agents in parallel) → Validate → Debug
-```
+That's CLUTCH. Same PIV quality pipeline, but the execution phase runs in parallel using Claude Code's Agent Teams. The PRP defines workstreams (file-exclusive work units), and CLUTCH spawns one executor per workstream. They work simultaneously, then validation catches anything that slipped through.
 
-## How It Works
+## Who This Is For
 
-```
-┌──────────────────────────────────────────────────────────┐
-│                  CLUTCH ORCHESTRATOR v2                    │
-├──────────────────────────────────────────────────────────┤
-│  1. Generate PRP with ## Workstreams section              │
-│  2. Evaluate: 1 workstream → solo, 2-4 → team mode      │
-│  3. Check depends_on:                                     │
-│     No deps  → spawn all executors in parallel            │
-│     Has deps → contract-first staggered spawn:            │
-│       a. Spawn upstream executors first                   │
-│       b. Receive & verify interface contracts             │
-│       c. Forward contracts to downstream executors        │
-│       d. All executors build in parallel                  │
-│  4. Pre-integration contract diff (if deps existed)       │
-│  5. Spawn validator → PASS / GAPS_FOUND / HUMAN_NEEDED   │
-│  6. Debug: assign gaps back to responsible executors      │
-│  7. Shutdown team, commit, next phase                     │
-└──────────────────────────────────────────────────────────┘
-```
-
-### The Key Insight: Workstreams
-
-The PRP (Project Requirements Plan) includes a **Workstreams** section that defines how work splits across parallel executors:
-
-```markdown
-## Workstreams
-
-### Workstream 1: frontend
-- **Files owned**: src/components/, src/pages/
-- **Depends on**: none
-- **Tasks**: Build React components, page routing
-
-### Workstream 2: api
-- **Files owned**: src/api/, src/middleware/
-- **Depends on**: none
-- **Tasks**: REST endpoints, auth middleware
-
-### Workstream 3: database
-- **Files owned**: src/models/, migrations/
-- **Depends on**: none
-- **Tasks**: Schema, migrations, seed data
-```
-
-Each workstream becomes one executor teammate. No file conflicts — each executor owns exclusive files.
+- Devs already using [`/piv`](https://github.com/SmokeAlot420/piv) who hit phases with parallelizable work
+- Anyone building features that span frontend + backend + DB
+- Teams that want faster execution without sacrificing validation
 
 ## Quick Start
 
@@ -85,31 +41,63 @@ git clone https://github.com/SmokeAlot420/clutch.git
 claude --plugin-dir ./clutch
 
 # Run on a project with a PRD
-/piv-teams ~/my-project/PRDs/PRD.md 1
+/clutch ~/my-project/PRDs/PRD.md 1
 
-# Run on a project (auto-discover PRD)
-/piv-teams ~/my-project
+# Auto-discover PRD
+/clutch ~/my-project
 
 # Run specific phases
-/piv-teams ~/my-project 2 3
+/clutch ~/my-project 2 3
 ```
 
-## When to Use CLUTCH vs Solo PIV
+## How It Works
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                    CLUTCH ORCHESTRATOR                         │
+├──────────────────────────────────────────────────────────────┤
+│  1. Generate PRP with ## Workstreams section                  │
+│  2. Evaluate: 1 workstream → solo, 2-4 → team mode           │
+│  3. Check dependencies:                                       │
+│     No deps  → spawn all executors in parallel                │
+│     Has deps → contract-first staggered spawn                 │
+│  4. Spawn validator → PASS / GAPS_FOUND / HUMAN_NEEDED        │
+│  5. Debug: assign gaps to responsible executors                │
+│  6. Shutdown team, commit, next phase                         │
+└──────────────────────────────────────────────────────────────┘
+```
+
+1. **PRP with Workstreams** — The PRP includes a Workstreams section defining file-exclusive work units
+2. **Team or Solo** — 2-4 workstreams get a team, 0-1 falls back to solo automatically
+3. **Contract-First** — Dependent workstreams publish interface contracts before coding. Lead verifies, then forwards to downstream
+4. **Parallel Execution** — Independent workstreams spawn all at once. No file conflicts — each executor owns exclusive files
+5. **Validate & Debug** — Same independent validation as solo PIV, but gaps get assigned back to the responsible executor (they already have context)
+
+## Why It Works
+
+**Workstream file ownership.** The PRP defines which files each workstream owns. No two executors touch the same file. This is the primary coordination mechanism — it eliminates merge conflicts and stepping-on-toes failures.
+
+**Contract-first protocol.** When workstreams have dependencies (frontend needs the API contract), upstream executors publish their interface contracts *before* implementing. The lead verifies them, then forwards to downstream. No more "3 agents built 3 things that don't connect."
+
+**Fresh context per agent.** Each executor spawns with clean context, reads only their workstream scope + the full PRP. No context drift from long sessions.
+
+## When to Use
 
 | Scenario | Use |
 |----------|-----|
-| Single-focus phase (one component, one feature) | Solo `/piv` via [FTW](https://github.com/SmokeAlot420/ftw) |
-| Phase with parallelizable work (frontend + backend + DB) | `/piv-teams` via CLUTCH |
-| Unsure | Use CLUTCH — it auto-falls back to solo if only 1 workstream |
+| Single-focus phase (one component, one feature) | Solo [`/piv`](https://github.com/SmokeAlot420/piv) |
+| Phase with parallelizable work (frontend + backend + DB) | `/clutch` |
+| Quick single feature, no PRD | [`/mini-piv`](https://github.com/SmokeAlot420/piv) |
+| Unsure | Use `/clutch` — it auto-falls back to solo if only 1 workstream |
 
 ## Features
 
 - **Parallel execution** — 2-4 executor teammates working simultaneously
-- **Inter-agent messaging** — teammates coordinate on dependencies
+- **Contract-first protocol** — dependent workstreams publish interfaces before implementing
 - **Independent validation** — validator doesn't trust executors, verifies everything
 - **Debug via messaging** — gaps assigned back to responsible executors (they already have context)
-- **Smart fallback** — 1 workstream? Falls back to solo PIV automatically
-- **Full PIV pipeline** — analyze, PRP gen, execute, validate, debug, commit
+- **Smart fallback** — 1 workstream? Falls back to solo execution automatically
+- **Full pipeline** — analyze, PRP gen, execute, validate, debug, commit
 
 ## Plugin Structure
 
@@ -121,8 +109,8 @@ clutch/
 │   ├── piv-validator.md
 │   └── piv-debugger.md
 └── skills/
-    └── piv-teams/
-        ├── SKILL.md              # Orchestrator (407 lines)
+    └── clutch/
+        ├── SKILL.md
         ├── references/
         │   ├── team-orchestration.md
         │   ├── generate-prp.md
@@ -149,7 +137,7 @@ CLUTCH v2 adds **contract-first spawning** for workstreams with dependencies (in
 
 ## Related
 
-- **[FTW (First Try Works)](https://github.com/SmokeAlot420/ftw)** — Solo PIV workflow for Claude Code + OpenClaw. CLUTCH extends FTW with parallel teams.
+- **[PIV](https://github.com/SmokeAlot420/piv)** — Solo PIV workflow for Claude Code. Deep analysis, context-rich plans, independent validation. CLUTCH extends PIV with parallel teams.
 
 ## License
 

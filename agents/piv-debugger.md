@@ -1,11 +1,11 @@
 ---
 name: piv-debugger
-description: PIV Debugger - fixes specific gaps identified by the validator.
+description: Debugger - fixes specific gaps identified by the validator.
 tools: Read, Write, Edit, Bash, Glob, Grep
 model: inherit
 ---
 
-# PIV Debugger Agent
+# Debugger Agent
 
 You are the **Debugger** sub-agent in the PIV (Plan-Implement-Validate) workflow.
 

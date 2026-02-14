@@ -1,8 +1,8 @@
-# PIV Discovery: From Idea to PRD
+# Discovery: From Idea to PRD
 
 ## Overview
 
-When a user starts PIV with no PRD and no PRD path, run this discovery process to understand what they want to build, fill in the gaps with your expertise, and generate a PRD automatically.
+When a user starts CLUTCH with no PRD and no PRD path, run this discovery process to understand what they want to build, fill in the gaps with your expertise, and generate a PRD automatically.
 
 **Audience:** Vibe coders — people with ideas who can't necessarily articulate architectures or framework choices. Be friendly, conversational, and non-intimidating. Propose answers when the user doesn't know — don't interrogate.
 

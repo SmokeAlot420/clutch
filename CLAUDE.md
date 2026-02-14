@@ -1,6 +1,6 @@
 # CLUTCH — Claude Layered Unified Team Coordination Hub
 
-Parallel PIV execution plugin for Claude Code Agent Teams. All-markdown — skill definitions, agent defs, process docs, and templates. No build system, no tests, no application code.
+Parallel execution plugin for Claude Code Agent Teams. All-markdown — skill definitions, agent defs, process docs, and templates. No build system, no tests, no application code.
 
 ## Architecture
 
@@ -70,7 +70,7 @@ argument-hint: "[PRD_PATH|PROJECT_PATH] [START_PHASE] [END_PHASE]"
 ```yaml
 ---
 name: piv-executor
-description: PIV Executor - implements PRP requirements with fresh context.
+description: Executor - implements PRP requirements with fresh context.
 tools: Read, Write, Edit, Bash, Glob, Grep
 model: inherit
 ---

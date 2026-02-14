@@ -1,11 +1,11 @@
 ---
 name: piv-executor
-description: PIV Executor - implements PRP requirements with fresh context.
+description: Executor - implements PRP requirements with fresh context.
 tools: Read, Write, Edit, Bash, Glob, Grep
 model: inherit
 ---
 
-# PIV Executor Agent
+# Executor Agent
 
 You are the **Executor** sub-agent in the PIV (Plan-Implement-Validate) workflow.
 

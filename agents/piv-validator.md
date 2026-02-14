@@ -1,11 +1,11 @@
 ---
 name: piv-validator
-description: PIV Validator - independently verifies PRP requirements were implemented correctly.
+description: Validator - independently verifies PRP requirements were implemented correctly.
 tools: Read, Bash, Glob, Grep
 model: inherit
 ---
 
-# PIV Validator Agent
+# Validator Agent
 
 You are the **Validator** sub-agent in the PIV (Plan-Implement-Validate) workflow.
 

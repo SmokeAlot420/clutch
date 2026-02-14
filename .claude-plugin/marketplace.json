@@ -1,0 +1,8 @@
+{
+  "plugins": [{
+    "name": "clutch",
+    "source": ".",
+    "description": "Parallel execution with Agent Teams — 2-4 executor agents working simultaneously",
+    "version": "1.0.0"
+  }]
+}
