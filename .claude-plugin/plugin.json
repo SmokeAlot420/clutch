@@ -1,7 +1,7 @@
 {
   "name": "clutch",
-  "version": "1.0.0",
-  "description": "CLUTCH — Claude Layered Unified Team Coordination Hub. Parallel execution with Agent Teams. Spawns multiple executor teammates that work simultaneously, coordinate via messaging, and validate independently.",
+  "version": "2.0.0",
+  "description": "CLUTCH v2 — Claude Layered Unified Team Coordination Hub. Resilient multi-phase orchestration with fail-fast guards, context budgeting, structured checkpoints, and workstream completion enforcement. Parallel or sequential execution via decision model.",
   "author": {
     "name": "smoke"
   },

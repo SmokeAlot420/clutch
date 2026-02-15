@@ -1,7 +1,7 @@
 <p align="center">
   <h1 align="center"><b>CLUTCH</b></h1>
   <p align="center"><i>Claude Layered Unified Team Coordination Hub</i></p>
-  <p align="center">Parallel execution for Claude Code Agent Teams. Multiple executor agents working simultaneously, coordinating via contracts, validated independently.</p>
+  <p align="center">Resilient multi-phase orchestration for Claude Code. Fail-fast guards, context budgeting, structured checkpoints, and workstream completion enforcement.</p>
 </p>
 
 <p align="center">
@@ -50,28 +50,27 @@ claude --plugin-dir ./clutch
 /clutch ~/my-project 2 3
 ```
 
-## How It Works
+## How It Works (v2)
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                    CLUTCH ORCHESTRATOR                         │
+│                  CLUTCH v2 ORCHESTRATOR                        │
 ├──────────────────────────────────────────────────────────────┤
 │  1. Generate PRP with ## Workstreams section                  │
-│  2. Evaluate: 1 workstream → solo, 2-4 → team mode           │
-│  3. Check dependencies:                                       │
-│     No deps  → spawn all executors in parallel                │
-│     Has deps → contract-first staggered spawn                 │
-│  4. Spawn validator → PASS / GAPS_FOUND / HUMAN_NEEDED        │
-│  5. Debug: assign gaps to responsible executors                │
-│  6. Shutdown team, commit, next phase                         │
+│  2. BUDGET GATE: enough context? NO → checkpoint + stop       │
+│  3. DECISION MODEL: team / sequential / solo                  │
+│  4. EXECUTE with FAIL-FAST (team: check git diff @ 2 turns)  │
+│  5. Validate → Debug (max 3x) → Verify workstreams           │
+│  6. CHECKPOINT to WORKFLOW.md → commit → next phase           │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-1. **PRP with Workstreams** — The PRP includes a Workstreams section defining file-exclusive work units
-2. **Team or Solo** — 2-4 workstreams get a team, 0-1 falls back to solo automatically
-3. **Contract-First** — Dependent workstreams publish interface contracts before coding. Lead verifies, then forwards to downstream
-4. **Parallel Execution** — Independent workstreams spawn all at once. No file conflicts — each executor owns exclusive files
-5. **Validate & Debug** — Same independent validation as solo PIV, but gaps get assigned back to the responsible executor (they already have context)
+1. **Budget Gate** — Estimate phase cost before starting; checkpoint + stop if context is insufficient
+2. **Decision Model** — 6-condition matrix chooses team, sequential, or solo execution
+3. **Fail-Fast Guard** — After 2 turns, check `git diff`; kill team + go sequential if no output
+4. **Contract-First** — Dependent workstreams publish interface contracts before coding
+5. **Workstream Enforcement** — Verify EVERY workstream has output before committing
+6. **Structured Checkpoints** — WORKFLOW.md enables cold-start resumption from any session
 
 ## Why It Works
 
@@ -92,12 +91,16 @@ claude --plugin-dir ./clutch
 
 ## Features
 
-- **Parallel execution** — 2-4 executor teammates working simultaneously
+- **Fail-fast execution guard** — detect non-productive teams in 2 turns, kill and go sequential
+- **Context budget gate** — estimate phase cost, checkpoint + stop if context is insufficient
+- **Structured checkpoints** — WORKFLOW.md enables cold-start resumption from any session
+- **Workstream completion enforcement** — verify every workstream has output before commit
+- **Decision model** — 6-condition matrix for team vs. sequential vs. solo
+- **Parallel execution** — 2-4 executor teammates working simultaneously (when appropriate)
 - **Contract-first protocol** — dependent workstreams publish interfaces before implementing
 - **Independent validation** — validator doesn't trust executors, verifies everything
-- **Debug via messaging** — gaps assigned back to responsible executors (they already have context)
-- **Smart fallback** — 1 workstream? Falls back to solo execution automatically
-- **Full pipeline** — analyze, PRP gen, execute, validate, debug, commit
+- **Debug via messaging** — gaps assigned back to responsible executors
+- **Smart fallback** — 1 workstream → solo, team failure → sequential
 
 ## Plugin Structure
 
@@ -123,17 +126,19 @@ clutch/
             └── workflow-template.md
 ```
 
-## v2: Contract-First Protocol
+## v2: Resilient Multi-Phase Orchestration
 
-CLUTCH v2 adds **contract-first spawning** for workstreams with dependencies (inspired by [Cole Medin's agent team patterns](https://github.com/coleam00/context-engineering-intro)):
+CLUTCH v2 addresses five structural gaps found during real multi-phase PRD execution (a team failure that burned ~40% of context with zero output, no context budgeting, no cross-session checkpointing, a phase committed with a missing workstream, and underestimated coordination overhead):
 
-- **Staggered spawn**: Dependent workstreams spawn in order (upstream first, downstream after contract verified)
-- **Lead as relay**: Upstream executors publish interface contracts before coding; lead verifies and forwards to downstream
-- **Cross-cutting concerns**: Shared behaviors (URL conventions, error shapes) explicitly assigned to one owner
-- **Pre-integration diff**: Contract comparison before validation catches mismatches early
-- **Anti-pattern prevention**: No more "3 agents built 3 things that don't connect"
+- **Fail-fast guard**: Check `git diff` after 2 turns; kill non-productive teams immediately
+- **Context budget gate**: Estimate phase cost before starting; checkpoint + stop if insufficient
+- **Structured checkpoints**: WORKFLOW.md with full state — enables cold-start resumption from any session
+- **Workstream enforcement**: Verify every workstream has output before committing — no silent drops
+- **Decision model**: 6-condition matrix (workstream count, dependencies, team failures, context remaining) determines team vs. sequential vs. solo
+- **Contract-first protocol**: Dependent workstreams publish interface contracts before implementing
+- **No team retry rule**: If a team fails in a session, all remaining phases use sequential
 
-**Independent workstreams still spawn fully parallel** — zero overhead when there are no dependencies. The contract-first protocol only activates when the PRP has `depends_on` relationships.
+The result: every phase of every PRD executes to verified completion, regardless of session length or agent failures.
 
 ## Credits
 

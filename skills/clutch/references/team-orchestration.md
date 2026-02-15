@@ -1,13 +1,17 @@
-# Team Orchestration for CLUTCH
+# Team Orchestration for CLUTCH v2
 
 ## Overview
 
 This document covers team-specific orchestration patterns for parallel execution. The orchestrator creates a team of executor teammates that work simultaneously on different workstreams, coordinated through a shared task list and inter-agent messaging.
 
+CLUTCH v2 adds **fail-fast execution guards**, **sequential fallback**, and a **no-retry rule** to prevent wasting context on non-productive teams.
+
 ## Team Lifecycle
 
 ```
-TeamCreate → Spawn Teammates → Create & Assign Tasks → Monitor → Shutdown → TeamDelete
+TeamCreate → Spawn Teammates → Create & Assign Tasks → FAIL-FAST CHECK (2 turns) → Monitor → Shutdown → TeamDelete
+                                                           ↓ (no output)
+                                                      Kill Team → Sequential Fallback
 ```
 
 ### 1. Create Team
@@ -37,13 +41,74 @@ Use the shared task list for tracking:
 - Assign each task to the corresponding executor teammate using TaskUpdate
 - Set up blockedBy relationships if workstreams have dependencies
 
-### 4. Monitor Execution
+### 4. Fail-Fast Execution Guard (v2)
+
+**CRITICAL: Check team productivity within 2 turns of spawning.**
+
+After spawning all executor teammates, the orchestrator must:
+
+1. **Wait approximately 2 agent turns** (watch for 2 rounds of teammate idle notifications)
+2. **Run git diff check:**
+   ```bash
+   cd {PROJECT_PATH} && git diff --stat HEAD
+   ```
+3. **Evaluate result:**
+   - **Files changed > 0**: Team is productive. Proceed to normal monitoring (Step 4b).
+   - **Files changed = 0**: Team is non-productive. Trigger fail-fast:
+     a. Send `shutdown_request` to ALL teammates immediately
+     b. Call `TeamDelete` to clean up
+     c. Log the failure:
+        ```
+        TEAM FAIL-FAST: Team {team-name} produced no file output after 2 turns.
+        Falling back to sequential single-agent execution.
+        ```
+     d. Set `TEAM_FAILED_THIS_SESSION = true` (session state)
+     e. Proceed to **Sequential Fallback** (Step 4c)
+
+**Why 2 turns?** If agents are doing productive work, they write files within 2 turns. Contract-only messages with no code output = non-productive. The 2-turn window is conservative enough to avoid false positives while catching broken teams early (vs. v1 which burned ~40% of context before detecting failure).
+
+### 4b. Monitor Execution (team is productive)
 
 The orchestrator monitors teammates:
 - Teammates send messages when they complete work or encounter issues
 - Messages are delivered automatically — no polling needed
 - Answer teammate questions promptly to avoid blocking
 - If a teammate gets stuck, provide guidance via SendMessage
+
+### 4c. Sequential Fallback (after team failure)
+
+When fail-fast triggers, execute workstreams one at a time:
+
+1. For each workstream in the PRP (in dependency order):
+   ```
+   SEQUENTIAL EXECUTOR - Phase {N}, Workstream: {name}
+   ==================================================
+   PRP Path: {PRP_PATH}
+   Project: {PROJECT_PATH}
+
+   ## Your Scope
+   {paste workstream section: files owned, tasks}
+
+   ## Instructions
+   1. Read the PRP — absorb full context
+   2. Implement ONLY this workstream's files and tasks
+   3. Run validation commands from the PRP
+   4. Output EXECUTION SUMMARY: Status, Files, Tests, Issues
+   ```
+2. Spawn as `subagent_type: "general-purpose"` via Task tool (NOT as teammate)
+3. Wait for completion before spawning the next workstream
+4. Collect each executor's summary
+
+**Sequential is slower but reliable.** The overhead of team coordination is eliminated, and each agent gets full context for its workstream.
+
+### No Team Retry Rule (v2)
+
+**If a team fails (fail-fast triggered) during a session, NEVER retry team-based execution for any remaining phases in that session.**
+
+Always use sequential single-agent execution from that point forward. Rationale:
+- Whatever caused the team failure (context pressure, agent confusion, complex workstreams) is likely to recur
+- Sequential execution is more reliable and wastes less context
+- The orchestrator tracks this via `TEAM_FAILED_THIS_SESSION` flag
 
 ### 5. Collect Execution Summaries
 
@@ -207,6 +272,13 @@ If the PRP defines 5+ workstreams:
 
 ## Graceful Degradation
 
+### Team Produces No Output (v2 — Fail-Fast)
+If `git diff --stat HEAD` shows 0 files after 2 turns:
+1. Kill team immediately (shutdown_request + TeamDelete)
+2. Set `TEAM_FAILED_THIS_SESSION = true`
+3. Fall back to sequential single-agent execution for this phase AND all remaining phases
+4. Log failure in WORKFLOW.md
+
 ### Teammate Gets Stuck
 If a teammate stops responding or reports BLOCKED:
 1. Check what they accomplished (read their files, check task status)
@@ -214,13 +286,13 @@ If a teammate stops responding or reports BLOCKED:
 3. If still stuck after 1 retry: take their remaining tasks and assign to another teammate or handle as orchestrator
 
 ### Team Creation Fails
-Fall back to solo /piv behavior — spawn one piv-executor sub-agent.
+Fall back to sequential single-agent execution (not teams) for this phase AND all remaining phases. Set `TEAM_FAILED_THIS_SESSION = true`.
 
 ### Partial Completion
 If some workstreams complete but others fail:
-1. Commit the successful workstreams (if they pass validation independently)
-2. Escalate the failed workstreams to the user
-3. Don't block successful work on failed work
+1. Do NOT commit incomplete phases — this is a v2 workstream enforcement rule
+2. Either execute the missing workstreams (sequential fallback) or mark as deferred with reason
+3. Only commit when ALL workstreams are verified or explicitly documented as deferred/skipped
 
 ## Team Naming Convention
 

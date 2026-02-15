@@ -1,6 +1,6 @@
-# CLUTCH — Claude Layered Unified Team Coordination Hub
+# CLUTCH v2 — Claude Layered Unified Team Coordination Hub
 
-Parallel execution plugin for Claude Code Agent Teams. All-markdown — skill definitions, agent defs, process docs, and templates. No build system, no tests, no application code.
+Resilient multi-phase orchestration plugin for Claude Code. Fail-fast guards, context budgeting, structured checkpoints, workstream completion enforcement, and a decision model for team vs. sequential execution. All-markdown — skill definitions, agent defs, process docs, and templates. No build system, no tests, no application code.
 
 ## Architecture
 
@@ -13,7 +13,7 @@ clutch/
 │   └── piv-debugger.md              <- Fixes validator-identified gaps
 ├── skills/
 │   └── clutch/                      <- The /clutch skill
-│       ├── SKILL.md                 <- Main orchestrator (~500 lines)
+│       ├── SKILL.md                 <- Main orchestrator (~600 lines, v2)
 │       ├── references/              <- Process docs
 │       │   ├── piv-discovery.md     <- Discovery questions for new projects
 │       │   ├── create-prd.md        <- PRD generation process
@@ -29,18 +29,21 @@ clutch/
 └── LICENSE                          <- MIT
 ```
 
-## How It Works
+## How It Works (v2)
 
 1. **Discover** — If no PRD exists, ask discovery questions and generate one
 2. **Analyze** — Fresh sub-agent does deep codebase analysis + PRP generation
-3. **Split** — PRP includes Workstreams section defining parallel work units
-4. **Execute** — TeamCreate + spawn executor teammates (one per workstream)
-5. **Contract** — Dependent workstreams publish interface contracts before implementing
-6. **Validate** — Independent validator teammate checks all work
-7. **Debug** — Gaps assigned back to responsible executors via messaging (max 3 cycles)
-8. **Commit** — Orchestrator commits on PASS
+3. **Budget Gate** — Check context budget before starting phase; checkpoint + stop if insufficient
+4. **Decide** — Decision model chooses team, sequential, or solo based on 6 conditions
+5. **Execute** — Team (with fail-fast guard) or sequential single-agents
+6. **Fail-Fast** — After 2 turns, check git diff; kill team + go sequential if no output
+7. **Contract** — Dependent workstreams publish interface contracts before implementing
+8. **Validate** — Independent validator checks all work
+9. **Enforce** — Verify EVERY workstream has output before committing (no silent drops)
+10. **Checkpoint** — Write structured state to WORKFLOW.md enabling cold-start resumption
+11. **Commit** — Orchestrator commits on PASS
 
-Falls back to solo execution if only 1 workstream (or no workstreams section).
+Falls back to sequential if team fails, or to solo if only 1 workstream.
 
 ## Key Mechanism: CLUTCH_DIR Resolution
 
@@ -83,13 +86,17 @@ model: inherit
 
 ## Rules
 
-- **SKILL.md ~500 lines** — heavy content goes in `references/`
-- **Templates in `assets/`** — PRP template, workflow template
+- **SKILL.md ~600 lines** — heavy content goes in `references/`
+- **Templates in `assets/`** — PRP template, workflow checkpoint template
 - **Sub-agents get fresh context** — orchestrator stays lean (~15% context)
 - **Sub-agents get absolute paths** — all reference/template paths use `{CLUTCH_DIR}` prefix
 - **Flat agent hierarchy** — sub-agents cannot spawn sub-agents
 - **Contract-first for dependencies** — upstream publishes interface contracts before downstream spawns
-- **CLUTCH branding in commits** — `Built with CLUTCH - https://github.com/SmokeAlot420/clutch`
+- **Fail fast, recover cheap** — detect non-productive teams in 2 turns, kill and go sequential
+- **Budget before you spend** — estimate context cost per phase, checkpoint if insufficient
+- **Done means done** — every workstream verified before commit, no silent drops
+- **Checkpoint everything** — structured WORKFLOW.md enables cold-start resumption
+- **CLUTCH branding in commits** — `Built with CLUTCH v2 - https://github.com/SmokeAlot420/clutch`
 
 ## Usage
 

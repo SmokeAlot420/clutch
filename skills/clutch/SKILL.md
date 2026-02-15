@@ -1,14 +1,14 @@
 ---
 name: clutch
-description: "CLUTCH — Claude Layered Unified Team Coordination Hub. Parallel execution with Agent Teams. Analyze -> PRP -> execute -> validate -> debug pipeline with multiple executor teammates working simultaneously. Contract-first protocol for dependent workstreams. Triggers on: clutch, parallel execution, team execution, multi-agent."
+description: "CLUTCH v2 — Claude Layered Unified Team Coordination Hub. Resilient multi-phase orchestration with fail-fast guards, context budgeting, structured checkpoints, and workstream completion enforcement. Parallel execution with Agent Teams when appropriate, sequential fallback when not. Triggers on: clutch, parallel execution, team execution, multi-agent."
 disable-model-invocation: true
 allowed-tools: Task, TaskCreate, TaskUpdate, TaskList, TeamCreate, TeamDelete, SendMessage, Read, Write, Bash, Glob, Grep
 argument-hint: "[PRD_PATH|PROJECT_PATH] [START_PHASE] [END_PHASE]"
 ---
 
-# CLUTCH Orchestrator
+# CLUTCH v2 Orchestrator
 
-> Claude Layered Unified Team Coordination Hub
+> Claude Layered Unified Team Coordination Hub — Resilient Multi-Phase Orchestration
 
 ## Arguments: $ARGUMENTS
 
@@ -125,7 +125,21 @@ You are the **orchestrator**. You stay lean and manage the team. You DO NOT exec
 
 ---
 
-## Phase Workflow
+## Session State (v2)
+
+Track these flags throughout the session. They persist across phases within a single session:
+
+```
+TEAM_FAILED_THIS_SESSION = false   # Set to true if any team fail-fast triggers
+PHASES_COMPLETED = 0               # Count of successfully committed phases
+ESTIMATED_CONTEXT_USED = 15        # Start at ~15% for orchestrator overhead
+```
+
+These flags drive the **Decision Model** (Step 2) and **Budget Gate** (Step 1b).
+
+---
+
+## Phase Workflow (v2)
 
 For each phase from START_PHASE to END_PHASE:
 
@@ -189,16 +203,43 @@ own exclusive files. Aim for 2-4 workstreams. See the template for format.
 
 **Wait for the research agent to complete** before proceeding.
 
-### Step 2: Evaluate Workstreams and Choose Execution Mode
+### Step 1b: Context Budget Gate (v2)
 
-Read the generated PRP and find the `## Workstreams` section.
+**Check if there's enough context to complete this phase.**
 
-**Count workstreams:**
-- **0 or 1 workstream** → **SOLO MODE**: Fall back to solo execution (Step 2a)
-- **2-4 workstreams** → **TEAM MODE**: Create team and spawn teammates (Step 2b)
-- **5+ workstreams** → Merge smallest workstreams to get 4, then **TEAM MODE**
+| Workstreams | Estimated Cost | Min Remaining to Start |
+|-------------|---------------|----------------------|
+| 1 (small) | ~15% | 30% remaining |
+| 2 (medium) | ~25% | 50% remaining |
+| 3+ (large) | ~40% | 80% remaining |
 
-#### Step 2a: Solo Fallback
+`remaining = 100 - ESTIMATED_CONTEXT_USED`. If `remaining < 2× estimated_cost`:
+- Write checkpoint to WORKFLOW.md with resume instructions
+- Inform user: "Context budget insufficient for Phase N. Start fresh: `/clutch {PRD_PATH} {N}`"
+- **STOP execution.** Always err on the side of checkpointing early.
+
+### Step 2: Choose Execution Strategy (v2 Decision Model)
+
+Read the generated PRP and find the `## Workstreams` section. Count workstreams and evaluate conditions.
+
+**Decision Matrix:**
+
+| # | Condition | Strategy |
+|---|-----------|----------|
+| 1 | 1 workstream | Single agent (always) |
+| 2 | 2+ workstreams, same repo, no data deps | Team (with fail-fast) |
+| 3 | 2+ workstreams, cross-repo | Sequential single agents |
+| 4 | 2+ workstreams, data dependencies | Sequential (contract-first) |
+| 5 | `TEAM_FAILED_THIS_SESSION = true` | Sequential (always — no team retry) |
+| 6 | Remaining context < 50% | Sequential (cheaper overhead) |
+
+**Evaluate in order — first matching condition wins.**
+
+- Condition 5 overrides 2: if a team already failed this session, always sequential
+- Condition 6 overrides 2: if context is tight, sequential is cheaper
+- 5+ workstreams: Merge smallest to get 4, then apply matrix
+
+#### Step 2a: Solo Execution (1 workstream)
 
 Use the Task tool with `subagent_type: "piv-executor"`:
 
@@ -216,11 +257,35 @@ Output EXECUTION SUMMARY with Status, Files, Tests, Issues.
 
 Then skip to Step 4 (spawn validator as solo sub-agent).
 
-#### Step 2b: Team Execution
+#### Step 2b: Sequential Execution (v2 — conditions 3, 4, 5, or 6)
+
+For each workstream in PRP (dependency order), spawn one `general-purpose` agent via Task:
+
+```
+SEQUENTIAL EXECUTOR - Phase {N}, Workstream: {name}
+==================================================
+PRP Path: {PRP_PATH}
+Project: {PROJECT_PATH}
+
+## Your Scope
+{paste workstream section: files owned, tasks}
+
+## Instructions
+1. Read the PRP — absorb full context
+2. Implement ONLY this workstream's files and tasks
+3. Dependencies from prior workstreams are already on disk
+4. Run validation commands for your scope
+5. Output EXECUTION SUMMARY: Status, Files, Tests, Issues
+```
+
+Wait for completion before spawning next workstream. Collect summaries for validator.
+Then skip to Step 4 (spawn validator as solo sub-agent).
+
+#### Step 2c: Team Execution (2+ workstreams, parallel — condition 2)
 
 1. **Create team**: `TeamCreate` with name `{project}-phase-{N}`
 
-2. **Read team-orchestration.md** for full lifecycle details.
+2. **Read team-orchestration.md** for full lifecycle details (including fail-fast guard).
 
 3. **For each workstream**, spawn a teammate via Task:
    - `name`: `executor-{workstream-name}`
@@ -255,7 +320,7 @@ Project: {PROJECT_PATH}
 4. **Create tasks** in the shared task list (one per workstream), assign to teammates.
 5. **Set up blockedBy** if any workstreams have dependencies.
 
-### Step 2c: Contract-First Protocol (TEAM MODE with dependencies)
+### Step 2d: Contract-First Protocol (TEAM MODE with dependencies)
 
 If workstreams have `depends_on` relationships, use **staggered spawn** instead of fully parallel spawn:
 
@@ -307,12 +372,14 @@ If workstreams have `depends_on` relationships, use **staggered spawn** instead 
 
 6. **If ALL workstreams are independent (no `depends_on`):** skip this step entirely — spawn all in parallel as in Step 2b.
 
-### Step 3: Monitor Team Execution
+### Step 3: Monitor Execution (with Fail-Fast Guard)
 
-- Teammates send messages automatically when done or when they need help
-- Answer teammate questions promptly
-- If a teammate reports BLOCKED, provide guidance or reassign work
-- Wait for all executor teammates to mark their tasks complete
+**TEAM MODE:** Follow the **Fail-Fast Execution Guard** in references/team-orchestration.md:
+- Check `git diff --stat HEAD` after 2 agent turns
+- Files changed = 0 → kill team, set `TEAM_FAILED_THIS_SESSION = true`, fall back to Step 2b
+- Files changed > 0 → team is productive, continue normal monitoring
+
+**All modes:** Answer teammate questions promptly. If BLOCKED, provide guidance or reassign.
 
 ### Step 3b: Pre-Integration Contract Diff (TEAM MODE with dependencies)
 
@@ -397,9 +464,27 @@ After fixes:
 2. Wait for shutdown confirmations
 3. Call TeamDelete to clean up
 
-### Step 7: Smart Commit (Orchestrator does this)
+### Step 7: Workstream Completion Enforcement (v2)
 
-After validation passes:
+**Before committing, verify EVERY workstream has output.**
+
+1. List all workstreams from the PRP's `## Workstreams` section
+2. For each workstream, check `git diff --stat HEAD` for its expected files:
+   ```bash
+   cd {PROJECT_PATH} && git diff --stat HEAD -- {file1} {file2} ...
+   ```
+3. Classify each workstream:
+   - **completed**: Has file changes matching expected output
+   - **skipped**: No changes, but has documented reason (e.g., "not needed for MVP")
+   - **deferred**: No changes, needs future work (e.g., "context budget exhausted")
+4. **BLOCKING RULE**: If any workstream has no output AND no documented reason:
+   - Option A: Execute it now (if context allows) — use sequential single-agent
+   - Option B: Mark as `deferred` with explicit reason
+   - **NEVER commit with an undocumented missing workstream**
+
+### Step 8: Smart Commit (Orchestrator does this)
+
+After workstream verification passes:
 ```bash
 cd PROJECT_PATH
 git status
@@ -408,39 +493,38 @@ git diff --stat
 
 Create semantic commit:
 - Format: `feat/fix/refactor(scope): description`
-- Add: `Built with CLUTCH - https://github.com/SmokeAlot420/clutch`
+- Add: `Built with CLUTCH v2 - https://github.com/SmokeAlot420/clutch`
 
-### Step 8: Update Progress
+### Step 9: Checkpoint to WORKFLOW.md (v2)
 
-Update `PROJECT_PATH/WORKFLOW.md`:
-- Mark phase N as complete
-- Note validation results and execution mode (solo/team)
-- Record workstream summaries
+**Write structured checkpoint** using the schema from `{CLUTCH_DIR}/skills/clutch/assets/workflow-template.md`.
 
-### Step 9: Next Phase
+Each checkpoint includes: status, commit SHA, execution mode, team failure flag, workstream status list (completed/skipped/deferred with reasons), test count, files changed, validation cycles, context budget estimate, next phase description, and resume instructions.
 
-Increment phase counter. If more phases remain, loop back to Step 1.
+**Key requirement:** A cold-start session with ONLY the PRD + WORKFLOW.md must be able to continue Phase N+1.
+
+Also update the Execution Summary table at the top of WORKFLOW.md.
+
+Update session state: `PHASES_COMPLETED += 1`, `ESTIMATED_CONTEXT_USED += phase_cost`
+
+### Step 10: Next Phase
+
+Increment phase counter. If more phases remain, loop back to Step 1 (including Budget Gate at Step 1b).
 
 ---
 
 ## Error Handling
 
-### No PRD Found
-Enter Discovery Mode (see above).
-
-### Executor Teammate Returns BLOCKED
-Message the teammate for details. If unresolvable, reassign work or escalate to user.
-
-### Validator Returns HUMAN_NEEDED
-Ask user: "Validator needs guidance on phase N. Question: [details]. Please advise."
-
-### 3 Debug Cycles Exhausted
-Ask user: "Phase N failed validation after 3 fix attempts. Persistent issues: [list]. Need your guidance."
-
-### Teammate Timeout/Failure
-1. Check for partial work (files created, tests written)
-2. Reassign remaining tasks to another teammate or handle via solo fallback
-3. If multiple teammates fail, escalate to user
+| Error | Action |
+|-------|--------|
+| No PRD found | Enter Discovery Mode |
+| Team fail-fast (v2) | Kill team → sequential fallback → `TEAM_FAILED_THIS_SESSION = true` |
+| Context budget exceeded (v2) | Checkpoint to WORKFLOW.md → inform user → STOP |
+| Workstream missing output (v2) | Execute it or mark deferred — never silent drop |
+| Executor BLOCKED | Message for details → reassign or escalate |
+| Validator HUMAN_NEEDED | Ask user for guidance |
+| 3 debug cycles exhausted | Escalate to user with all context |
+| Teammate timeout/failure | Check partial work → reassign → if multiple fail, go sequential |
 
 ---
 
@@ -448,57 +532,67 @@ Ask user: "Phase N failed validation after 3 fix attempts. Persistent issues: [l
 
 When all phases are complete, output:
 ```
-## CLUTCH COMPLETE
+## CLUTCH v2 COMPLETE
 
 Phases Completed: START to END
-Execution Mode: Team (N workstreams) / Solo (fallback)
+Execution Modes Used: Team / Sequential / Solo (per phase)
+Team Failures: N (sessions where fail-fast triggered)
 Total Commits: N
 Validation Cycles: M
+Context Used: ~X%
 
 ### Phase Summary:
-- Phase 1: [feature] - [solo/team with N executors] - validated in N cycles
-- Phase 2: [feature] - [solo/team with N executors] - validated in N cycles
+- Phase 1: [feature] - [solo/team/sequential] - validated in N cycles
+- Phase 2: [feature] - [solo/team/sequential] - validated in N cycles
 ...
 
+### Workstream Coverage:
+- Total workstreams: N
+- Completed: N
+- Deferred: N (reasons documented in WORKFLOW.md)
+- Skipped: N (reasons documented in WORKFLOW.md)
+
 All phases successfully implemented and validated.
+WORKFLOW.md checkpoint is current — any future session can continue from here.
 ```
 
 ---
 
-## Visual Workflow
+## Visual Workflow (v2)
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                    CLUTCH ORCHESTRATOR                            │
-│     Claude Layered Unified Team Coordination Hub                 │
+│                  CLUTCH v2 ORCHESTRATOR                           │
+│   Claude Layered Unified Team Coordination Hub                   │
+│   Resilient Multi-Phase Orchestration                            │
 ├──────────────────────────────────────────────────────────────────┤
+│ SESSION STATE: team_failed=false, context_used=15%, phases=0     │
+│                                                                  │
 │ IF NO PRD FOUND:                                                 │
 │   a. Ask discovery questions (piv-discovery.md)                  │
 │   b. Generate PRD from answers (create-prd.md)                   │
 │   c. Set PRD_PATH, auto-detect phases                            │
 │                                                                  │
 │ FOR EACH PHASE (START_PHASE to END_PHASE):                       │
-│   a. Check if PRP exists                                         │
-│   b. If not → spawn RESEARCH AGENT (analysis + PRP gen)          │
-│      PRP MUST include ## Workstreams section                     │
-│   c. Evaluate workstreams:                                       │
-│      0-1 → Solo fallback (spawn 1 piv-executor)                 │
-│      2-4 → TeamCreate + team mode                                │
-│      5+  → Merge to 4, then team mode                           │
-│   d. Check depends_on:                                           │
-│      No deps  → spawn all executors in parallel                  │
-│      Has deps → contract-first staggered spawn:                  │
-│        i.  Identify cross-cutting concerns, assign owners        │
-│        ii. Spawn upstream executors (publish contract first)     │
-│        iii.Verify contracts, forward to downstream executors     │
-│        iv. All executors build in parallel                       │
-│   e. Monitor teammates / wait for completion                     │
-│   f. Pre-integration contract diff (if deps existed)             │
-│   g. Spawn VALIDATOR → PASS / GAPS_FOUND / HUMAN_NEEDED         │
-│   h. If GAPS_FOUND → assign gaps to executors (max 3x)          │
-│   i. Shutdown team + TeamDelete                                  │
-│   j. Commit on PASS                                              │
-│   k. Update WORKFLOW.md                                          │
-│   l. Next phase                                                  │
+│   1a. Check/Generate PRP (fresh sub-agent)                       │
+│   1b. BUDGET GATE: Can we afford this phase?                     │
+│       NO  → checkpoint + STOP                                    │
+│       YES → continue                                             │
+│   2.  DECISION MODEL: Choose strategy                            │
+│       1 workstream        → Solo (2a)                            │
+│       2+ no deps, no fail → Team with fail-fast (2c)             │
+│       2+ with deps/fail   → Sequential (2b)                      │
+│       Low context         → Sequential (2b)                      │
+│   3.  EXECUTE with FAIL-FAST GUARD (team mode):                  │
+│       After 2 turns: git diff → files? continue : kill → seq     │
+│   4.  Spawn VALIDATOR → PASS / GAPS_FOUND / HUMAN_NEEDED         │
+│   5.  If GAPS_FOUND → debug loop (max 3x)                        │
+│   6.  Shutdown team (if team mode)                                │
+│   7.  WORKSTREAM ENFORCEMENT: verify ALL workstreams have output  │
+│       Missing? → execute or mark deferred (NEVER silent drop)    │
+│   8.  Commit on PASS                                             │
+│   9.  CHECKPOINT: Write structured state to WORKFLOW.md           │
+│       (enables cold-start resumption from any session)            │
+│   10. Next phase (loop with budget check)                         │
 └──────────────────────────────────────────────────────────────────┘
 ```
