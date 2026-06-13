@@ -1,172 +1,123 @@
-# Create PRD: Generate Product Requirements Document
+# Create PRD: Intent-Engineered Product Requirements Document
 
 ## Overview
 
-Generate a comprehensive Product Requirements Document (PRD) based on the current conversation context and requirements discussed. Use the structure and sections defined below to create a thorough, professional PRD.
+Generate a PRD that captures **intent**, not a spec. Intent engineering means
+defining the **WHY** for the builder: a concrete problem, a **falsifiable
+hypothesis** (with a right AND a wrong condition), real success criteria, and how
+the work is verified. Nail that and even a smaller model can carry the build,
+because everything it needs to decide is already decided.
+
+> **The PRD says why and what. The spec/PRP says how.** Data models, API shapes,
+> schemas, libraries, file layouts — those are engineering decisions and do NOT
+> belong in the PRD. A PRD full of them is the anti-pattern.
+
+Gold-standard worked example to model: `prd-exemplar-slack-threads.md`
+(co-located in this references folder — read it before writing).
 
 ## Output File
 
-Write the PRD to: `$ARGUMENTS` (default: `PRD.md`)
+Write the PRD to: `$ARGUMENTS` (default: `PRD.md`).
 
-## PRD Structure
+## Discovery Phase (before writing — gather the WHY first)
 
-Create a well-structured PRD with the following sections. Adapt depth and detail based on discovery answers and available information:
+If the user hasn't provided enough, ask only what's load-bearing:
 
-### Required Sections
+1. **What's broken, for whom, with what numbers?** The observable problem and
+   the cohort (not "users want X" — the measured pain).
+2. **Why now?** The trigger that makes it urgent.
+3. **The hypothesis + the wrong condition.** The change, the expected behavior
+   shift, the outcome — AND what result would prove us wrong. If there's no wrong
+   condition, there's no PRD yet.
+4. **Success metrics.** What moves, by how much, for which cohort, in what
+   window? What guardrail must NOT drop?
+5. **Non-goals.** What are we deliberately NOT doing in v1?
+6. **The PRD/spec line.** Which engineering decisions are we leaving to the spec?
+7. **Model / context window** (Claude Opus/Sonnet ~200K/1M, Codex, Gemini,
+   local). Record it — CLUTCH uses it for phase sizing and sub-agent prompts.
 
-**1. Executive Summary**
-- Concise product overview (2-3 paragraphs)
-- Core value proposition
-- MVP goal statement
+Do not invent load-bearing answers. Ask one tight question instead.
 
-**2. Mission**
-- Product mission statement
-- Core principles (3-5 key principles)
+## PRD Structure (write these sections, in order)
 
-**3. Target Users**
-- Primary user personas
-- Technical comfort level
-- Key user needs and pain points
+Keep every section concrete; cut anything generic. The first ten sections are the
+intent. The Implementation Phases section is the buildable breakdown CLUTCH
+consumes — it stays at the outcome/definition-of-done level, never engineering HOW.
 
-**4. MVP Scope**
-- **In Scope:** Core functionality for MVP
-- **Out of Scope:** Features deferred to future phases
-- Group by categories (Core Functionality, Technical, Integration, Deployment)
+**1. Problem statement** — concrete, with observable behaviors and real numbers;
+name the cohort and the measured pain.
 
-**5. User Stories**
-- Primary user stories (5-8 stories) in format: "As a [user], I want to [action], so that [benefit]"
-- Include concrete examples for each story
-- Add technical user stories if relevant
+**2. Why now** — the triggers that make it urgent (trend, customer signal,
+competitive pressure, internal signal).
 
-**6. Core Architecture & Patterns**
-- High-level architecture approach
-- Directory structure (if applicable)
-- Key design patterns and principles
-- Technology-specific patterns
+**3. Hypothesis** — the falsifiable heart, in this exact shape:
+> We believe **[change]** will cause **[cohort]** to **[behavior change]**,
+> resulting in **[measurable outcome]**.
+> We'll know we're **right** if **[primary metric moves by X]** within **[window]**.
+> We'll know we're **wrong** if **[guardrail drops]** or **[counter-signal exceeds a threshold]**.
 
-**7. Tools/Features**
-- Detailed feature specifications
-- If building an agent: Tool designs with purpose, operations, and key features
-- If building an app: Core feature breakdown
+**4. Target user** — Primary / Secondary / **Not the target** (exclusions matter).
 
-**8. Technology Stack**
-- Backend/Frontend technologies with versions
-- Dependencies and libraries
-- Optional dependencies
-- Third-party integrations
+**5. Non-goals** — explicitly out of scope for v1, each with a one-line reason.
 
-**9. Security & Configuration**
-- Authentication/authorization approach
-- Configuration management (environment variables, settings)
-- Security scope (in-scope and out-of-scope)
-- Deployment considerations
+**6. Risks and assumptions** — table: `# | Risk | Assumption it depends on | How we'll de-risk`.
 
-**10. API Specification** (if applicable)
-- Endpoint definitions
-- Request/response formats
-- Authentication requirements
-- Example payloads
+**7. Open questions** — flagged here, resolved during build (not answered here).
 
-**11. Success Criteria**
-- MVP success definition
-- Functional requirements
-- Quality indicators
-- User experience goals
+**8. Success metrics** — table: `Metric | Target | Cohort | Window`. Include a
+**guardrail** (must-not-drop) and a **leading indicator**.
 
-**12. Implementation Phases**
-- Break down into 3-4 phases
-- Each phase includes: Goal, Deliverables, Validation criteria
-- Realistic timeline estimates
+**9. Experiments & discovery plan** — spikes / reverse-experiments to resolve
+before full build commit (strongest signal: turn it off and measure complaints).
 
-**13. Future Considerations**
-- Post-MVP enhancements
-- Integration opportunities
-- Advanced features for later phases
+**10. What is deliberately NOT in this PRD** — the engineering decisions that
+belong in the spec (data model, API design, schema, routing rules, libraries).
+End with: "The PRD says *[what won't happen]*. The spec says *how*."
 
-**14. Risks & Mitigations**
-- 3-5 key risks with specific mitigation strategies
+**11. Implementation Phases** — REQUIRED for CLUTCH. Break the work into 2-4
+phases. **Emit each phase as a literal `## Phase N: <Title>` header** (CLUTCH
+auto-detects phases by scanning for these headers and generates a PRP per phase).
+Each phase block must contain:
 
-**15. Appendix** (if applicable)
-- Related documents
-- Key dependencies with links
-- Repository/project structure
+```markdown
+## Phase 1: <Short title>
+- **Goal:** <the outcome this phase delivers — what, not how>
+- **Deliverables:** <the concrete artifacts/surfaces produced>
+- **Validation:** <how we know this phase is done — its definition of done and
+  the check that proves it: tests pass, the metric moves, the surface renders>
+```
 
-## Discovery Phase (Before Writing)
+Keep phases at the outcome + definition-of-done level. The engineering HOW for
+each phase lives in that phase's generated PRP/spec, not here.
 
-Before generating the PRD, gather key information through quick discovery questions.
-If the user hasn't provided enough context, ask:
+## Quality gate (do not ship the PRD until all true)
 
-### Required Discovery
-1. **What are you building?** Quick description of the product/feature.
-2. **What model/platform are you using?** (e.g., Kimi K2.5, Claude Opus, OpenAI o3, GPT-5.2, local model)
-   - This determines context window limits and sub-agent sizing
-3. **What's the target tech stack?** Languages, frameworks, key libraries.
-4. **Any existing codebase?** If yes, what's the repo/path?
+- [ ] **Falsifiable hypothesis with BOTH a right and a wrong condition.**
+- [ ] Problem statement is concrete with real numbers and a named cohort.
+- [ ] **Non-goals** listed (each with a reason).
+- [ ] Success metrics have **cohort + window** and include a **guardrail**.
+- [ ] **Zero engineering HOW** in sections 1-10 (data models / API shapes /
+      schemas / libraries go to the spec).
+- [ ] Implementation Phases present, each as `## Phase N: <title>` with Goal +
+      Deliverables + Validation (so CLUTCH phase auto-detect + PRP generation work).
+- [ ] Scoped to one bet — not boiling the ocean.
 
-### Optional Discovery (ask if unclear)
-5. **Who are the users?** Target audience description.
-6. **What does "done" look like?** 1-3 success criteria.
-7. **What's explicitly OUT of scope?** Features to defer.
+## Anti-patterns — do NOT do this
 
-### Model Context Awareness
-Record the model and its context window in the PRD metadata:
-- Kimi K2.5: 131K tokens
-- Claude Opus/Sonnet: 200K tokens
-- OpenAI o3/GPT-5.2: varies
-- Local models: check config
-
-This info propagates to PRP generation and sub-agent prompt sizing.
-
-## Instructions
-
-### 1. Extract Requirements
-- Review the entire conversation history
-- Identify explicit requirements and implicit needs
-- Note technical constraints and preferences
-- Capture user goals and success criteria
-
-### 2. Synthesize Information
-- Organize requirements into appropriate sections
-- Fill in reasonable assumptions where details are missing
-- Maintain consistency across sections
-- Ensure technical feasibility
-
-### 3. Write the PRD
-- Use clear, professional language
-- Include concrete examples and specifics
-- Use markdown formatting (headings, lists, code blocks, checkboxes)
-- Add code snippets for technical sections where helpful
-- Keep Executive Summary concise but comprehensive
-
-### 4. Quality Checks
-- All required sections present
-- User stories have clear benefits
-- MVP scope is realistic and well-defined
-- Technology choices are justified
-- Implementation phases are actionable
-- Success criteria are measurable
-- Consistent terminology throughout
-
-## Style Guidelines
-
-- **Tone:** Professional, clear, action-oriented
-- **Format:** Use markdown extensively (headings, lists, code blocks, tables)
-- **Specificity:** Prefer concrete examples over abstract descriptions
-- **Length:** Comprehensive but scannable
+- The old kitchen-sink template (Executive Summary, Mission, Tech Stack, API
+  Specification, Security & Configuration, Core Architecture…). It pushes HOW
+  into the PRD and reads like a spec.
+- A "goal" with no measurable outcome and no way to be wrong.
+- No non-goals → guaranteed scope creep.
+- Success metrics with no cohort or window ("improve engagement").
+- Engineering decisions (data models, endpoints, libraries) in sections 1-10.
+- Overplanning — deciding what the spec should own.
 
 ## Output Confirmation
 
-After creating the PRD:
-1. Confirm the file path where it was written
-2. Provide a brief summary of the PRD contents
-3. Highlight any assumptions made due to missing information
-4. Suggest next steps (e.g., review, refinement, planning)
-
-## Notes
-
-- Ask discovery questions if the user starts with minimal context — don't assume
-- If critical information is missing, ask clarifying questions before generating
-- Adapt section depth based on available details
-- For highly technical products, emphasize architecture and technical stack
-- For user-facing products, emphasize user stories and experience
-- This command contains the complete PRD template structure - no external references needed
+After writing the PRD:
+1. Confirm the file path.
+2. Summarize the hypothesis and the phase breakdown.
+3. Note any assumptions made for missing info.
+4. Next: CLUTCH detects the `## Phase N:` headers and generates a PRP (the spec /
+   HOW) per phase.
